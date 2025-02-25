@@ -1,5 +1,8 @@
 # Streamlit Sensor Dashboard MVP
 
+## To Run Streamlit App
+```streamlit run app.py```
+
 ## Getting Started
 This guide will walk you through setting up a virtual environment, installing dependencies, and running the MVP Streamlit app.
 
