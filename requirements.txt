@@ -40,3 +40,6 @@ typing_extensions==4.12.2
 tzdata==2025.1
 urllib3==2.3.0
 watchdog==6.0.0
+packaging==24.2
+plotly==5.24.1
+tenacity==9.0.0
