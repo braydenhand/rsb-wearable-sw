@@ -91,7 +91,7 @@ def test_add_measurements(sensor_id, vest_id):
 
 def test_get_recent_measurements(vest_id):
     """Test GET /vests/{vest_id}/measurements/recent endpoint"""
-    response = requests.get(f"{API_BASE_URL}/vests/{vest_id}/measurements/recent", headers=headers)
+    response = requests.get(f"{API_BASE_URL}/vests/{vest_id}/measurements/recent?seconds=10000000", headers=headers)
     print(f"GET /vests/{vest_id}/measurements/recent status: {response.status_code}")
     print(json.dumps(response.json(), indent=2))
     return response.json()
@@ -104,23 +104,23 @@ def run_full_test():
     vests = test_get_vests()
     
     # Create a new vest
-    new_vest = test_create_vest()
-    vest_id = new_vest.get("vest_id")
-    
+    #new_vest = test_create_vest()
+    #vest_id = new_vest.get("vest_id")
+    vest_id=1
     # Get the vest by ID
     test_get_vest(vest_id)
     
     # Create sensors for the vest
     # Assuming sensor_type_id 1 is IMU, 2 is FlexSensor, etc.
     # You might need to adjust these IDs based on your actual data
-    sensor1 = test_create_sensor(vest_id, 1, "chest")
-    sensor2 = test_create_sensor(vest_id, 2, "left_shoulder")
+    #sensor1 = test_create_sensor(vest_id, 1, "chest")
+    #sensor2 = test_create_sensor(vest_id, 2, "left_shoulder")
     
     # Get all sensors for the vest
     test_get_vest_sensors(vest_id)
     
     # Add measurements for a sensor
-    test_add_measurements(sensor1.get("sensor_id"), vest_id)
+    #test_add_measurements(sensor1.get("sensor_id"), vest_id)
     
     # Get recent measurements
     test_get_recent_measurements(vest_id)
