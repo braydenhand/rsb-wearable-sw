@@ -73,17 +73,13 @@ def test_add_measurements(sensor_id, vest_id):
     for i in range(5):
         measurements.append({
             "sensor_id": sensor_id,
-            "vest_id": vest_id,
-            "timestamp": time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(current_time - i)),
             "value": 20 + i * 0.5,
-            "additional_data": json.dumps({"temperature": 22.5, "humidity": 40})
         })
     
-    request_data = {"measurements": measurements}
     response = requests.post(
         f"{API_BASE_URL}/measurements", 
         headers=headers,
-        json=request_data
+        json=measurements
     )
     print(f"POST /measurements status: {response.status_code}")
     print(json.dumps(response.json(), indent=2))
@@ -91,7 +87,7 @@ def test_add_measurements(sensor_id, vest_id):
 
 def test_get_recent_measurements(vest_id):
     """Test GET /vests/{vest_id}/measurements/recent endpoint"""
-    response = requests.get(f"{API_BASE_URL}/vests/{vest_id}/measurements/recent?seconds=10000000", headers=headers)
+    response = requests.get(f"{API_BASE_URL}/vests/{vest_id}/measurements/recent?seconds=200", headers=headers)
     print(f"GET /vests/{vest_id}/measurements/recent status: {response.status_code}")
     print(json.dumps(response.json(), indent=2))
     return response.json()
@@ -101,14 +97,14 @@ def run_full_test():
     print("=== STARTING FULL API TEST ===")
     
     # Get existing vests
-    vests = test_get_vests()
+    #vests = test_get_vests()
     
     # Create a new vest
     #new_vest = test_create_vest()
     #vest_id = new_vest.get("vest_id")
-    vest_id=1
+    vest_id=5
     # Get the vest by ID
-    test_get_vest(vest_id)
+    #test_get_vest(vest_id)
     
     # Create sensors for the vest
     # Assuming sensor_type_id 1 is IMU, 2 is FlexSensor, etc.
@@ -120,11 +116,19 @@ def run_full_test():
     test_get_vest_sensors(vest_id)
     
     # Add measurements for a sensor
-    #test_add_measurements(sensor1.get("sensor_id"), vest_id)
+    test_add_measurements(9, vest_id)
     
     # Get recent measurements
-    test_get_recent_measurements(vest_id)
-    
+    meas = test_get_recent_measurements(vest_id)
+    check = 0
+    check2 = 0
+    for m in meas:
+        if m["sensor_id"] == 9:
+            check += 1
+        if m["sensor_id"] == 10:
+            check2 += 1
+    print(f'check value {check}')
+    print(f'check2 value {check2}')
     print("=== API TEST COMPLETED ===")
 
 if __name__ == "__main__":

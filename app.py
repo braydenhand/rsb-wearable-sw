@@ -17,6 +17,12 @@ if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'username' not in st.session_state:
     st.session_state.username = ""
+# Add last refresh time to track auto-refresh
+if 'last_refresh_time' not in st.session_state:
+    st.session_state.last_refresh_time = time.time()
+# Add auto-refresh toggle
+if 'auto_refresh' not in st.session_state:
+    st.session_state.auto_refresh = True
 
 # App title
 st.title("🥊 Rock Steady Boxing Dashboard")
@@ -29,6 +35,8 @@ def login(username, password):
         "1": "password1",
         "2": "password2",
         "3": "password3",
+        "4": "password4",
+        "5": "password5",
         "*": "*"
     }
     
@@ -115,7 +123,7 @@ else:
     # Function to get recent measurements for a vest
     def get_recent_measurements(vest_id):
         try:
-            response = requests.get(f"{API_BASE_URL}/vests/{vest_id}/measurements/recent?seconds=10000000", headers=headers)
+            response = requests.get(f"{API_BASE_URL}/vests/{vest_id}/measurements/recent?seconds=60", headers=headers)
             if response.status_code == 200:
                 return response.json()
             elif response.status_code == 500:
@@ -265,7 +273,7 @@ else:
         else:
             st.info(f"No vests found with ID {user_vest_id}.")
 
- # Vest Dashboard Page
+    # Vest Dashboard Page
     elif page == "Vest Dashboard":
         st.header("📈 Vest Dashboard")
         
@@ -334,8 +342,15 @@ else:
         st.subheader("API Configuration")
         api_url = st.text_input("API Base URL", value=API_BASE_URL)
         
+        # Auto-refresh settings
+        st.subheader("Auto-Refresh Settings")
+        auto_refresh = st.checkbox("Enable Auto-Refresh", value=st.session_state.auto_refresh)
+        refresh_interval = st.slider("Refresh Interval (seconds)", min_value=1, max_value=60, value=5)
+        
         if st.button("Save Settings"):
             API_BASE_URL = api_url
+            st.session_state.auto_refresh = auto_refresh
+            st.session_state.refresh_interval = refresh_interval
             st.success("Settings saved successfully!")
         
         # Test connection
@@ -349,6 +364,10 @@ else:
             except Exception as e:
                 st.error(f"Connection error: {str(e)}")
 
+    # Initialize refresh interval if not set
+    if 'refresh_interval' not in st.session_state:
+        st.session_state.refresh_interval = 5  # Default to 5 seconds
+                
     # Vest Detail Page
     if "selected_vest" in st.session_state:
         vest_id = st.session_state["selected_vest"]
@@ -369,16 +388,37 @@ else:
                 st.rerun()
         else:
             # Vest header with back button
-            col1, col2 = st.columns([0.8, 0.2])
+            col1, col2, col3 = st.columns([0.6, 0.2, 0.2])
             with col1:
                 st.header(f"📊 {vest.get('name', f'Vest {vest_id}')} Details")
             with col2:
+                # Show auto-refresh status with toggle
+                auto_refresh_status = st.toggle("Auto-refresh", value=st.session_state.auto_refresh)
+                if auto_refresh_status != st.session_state.auto_refresh:
+                    st.session_state.auto_refresh = auto_refresh_status
+            with col3:
                 if st.button("Back to Dashboard", key="back_button"):
                     del st.session_state["selected_vest"]
                     st.rerun()
             
             # Vest metadata
             st.caption(f"ID: {vest_id} | Status: {'Active' if vest.get('is_active', False) else 'Inactive'}")
+            
+            # Handle auto-refresh
+            current_time = time.time()
+            if st.session_state.auto_refresh and current_time - st.session_state.last_refresh_time > st.session_state.refresh_interval:
+                st.session_state.last_refresh_time = current_time
+                # Use a small delay to prevent constant refreshing
+                time.sleep(0.1)
+                st.rerun()
+                
+            # Show last refresh time
+            st.caption(f"Last updated: {datetime.fromtimestamp(st.session_state.last_refresh_time).strftime('%H:%M:%S')}")
+            
+            # Manual refresh button
+            if st.button("Refresh Data Now"):
+                st.session_state.last_refresh_time = time.time()
+                st.rerun()
             
             # Get sensors for this vest
             sensors = get_vest_sensors(vest_id)
@@ -426,13 +466,52 @@ else:
                                 # Create a card-like container for each sensor
                                 st.subheader(f"{sensor_type} at {position}")
                                 
-                                # Create an interactive time series plot
+                                # Calculate average for this sensor
+                                avg_value = sensor_data["value"].mean()
+                                threshold = avg_value * 1.0  # 100% of average
+                                
+                                # Create two separate traces - one for normal points, one for threshold-exceeding points
+                                normal_data = sensor_data[sensor_data["value"] <= threshold]
+                                threshold_data = sensor_data[sensor_data["value"] > threshold]
+                                
+                                # Create an interactive time series plot with two traces
                                 fig = px.line(
-                                    sensor_data,
+                                    normal_data,
                                     x="timestamp",
                                     y="value",
                                     title=f"Sensor ID: {sensor_id}"
                                 )
+                                
+                                # Add the threshold-exceeding points in red
+                                if not threshold_data.empty:
+                                    fig.add_scatter(
+                                        x=threshold_data["timestamp"],
+                                        y=threshold_data["value"],
+                                        mode="markers",
+                                        marker=dict(color="red", size=10),
+                                        name="Exceeds Threshold"
+                                    )
+                                
+                                # Add a horizontal line showing the threshold value
+                                fig.add_shape(
+                                    type="line",
+                                    x0=sensor_data["timestamp"].min(),
+                                    x1=sensor_data["timestamp"].max(),
+                                    y0=threshold,
+                                    y1=threshold,
+                                    line=dict(color="red", width=1, dash="dash"),
+                                )
+                                
+                                # Add an annotation for the threshold value
+                                fig.add_annotation(
+                                    x=sensor_data["timestamp"].max(),
+                                    y=threshold,
+                                    text=f"Threshold: {threshold:.2f}",
+                                    showarrow=False,
+                                    yshift=10,
+                                    font=dict(color="red")
+                                )
+                                
                                 st.plotly_chart(fig, use_container_width=True)
                 
                 with tab2:
